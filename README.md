@@ -1,14 +1,113 @@
-# CVI-FINAL-PROJECT
-The core idea: Feed the model images from a car's front camera, and have it output the correct steering angle to keep the car on the road.
+# CVI620 Final Project — Self-Driving Car (Behavioral Cloning)
 
-How the project flows:
+Trains an Nvidia-style CNN to predict steering angle from the Udacity
+simulator's center-camera images, then drives the car autonomously in the
+simulator.
 
-Data collection – Use the Udacity self-driving car simulator in "Training Mode." You manually drive the car around a track (both forward and backward directions, ~5 laps each way) while it records center/left/right camera images plus steering angle, throttle, brake, and speed into a driving_log.csv file.
-Balance the dataset – Plot a histogram of steering angles to check the data isn't overly skewed (e.g., too many "drive straight" samples).
-Data augmentation – Artificially diversify the images via flipping (remember to negate the steering angle when you flip), brightness changes, zooming, panning, rotation — applied randomly to only part of the data, and only on the training set.
-Preprocessing – Crop out the sky/hood from images, convert to YUV color space, resize to 200×66 (matching Nvidia's model input), plus normalization and optional Gaussian blur.
-Batching – Write a function to feed data to the model in batches.
-Build & train the CNN – Follow the Nvidia architecture shown in the doc: 5 convolutional layers → flatten → fully-connected layers (1164 → 100 → 50 → 10) → single output (steering angle). Plot training curves to evaluate performance and save the trained model.
-Test it – Run a TestSimulation.py script that feeds the model live images from the simulator (in "Autonomous Mode") and watch whether the car stays on the track.
+**The core idea:** feed the model images from the car's front camera, and
+have it output the correct steering angle to keep the car on the road.
 
-Deliverables: all your Python scripts (preprocessing, training, inference, augmentation), a screen recording of the model driving successfully, a Git repo with commit history, and documentation/setup instructions. Groups of up to 3 are allowed.
+## Project structure
+
+```
+CVI-FINAL-PROJECT/
+├── IMG/                     # mtp's collected center/left/right camera frames
+├── driving_log.csv          # mtp's driving log: center,left,right,steering,throttle,brake,speed
+├── IMG_ayub/                # ayub's collected camera frames
+├── driving_log_ayub.csv     # ayub's driving log
+├── data_mtp/driving_log.csv # (legacy duplicate — kept for history)
+├── data_loader.py           # loads a driving_log.csv, reviews/balances steering histogram
+├── preprocessing.py         # img_preprocess(): crop, YUV, blur, resize, normalize
+├── augmentation.py          # pan/zoom/brightness/rotate/flip augmentation
+├── batching.py              # batch_generator(): combines augmentation + preprocessing per batch
+├── train.py                 # builds + trains the Nvidia model, saves model + graphs
+├── TestSimulation.py        # drives the car in the simulator's Autonomous Mode (inference)
+├── test.py                  # exploratory histogram script (Kaung)
+└── model/                   # output: model.h5, histogram_*.png, loss.png
+```
+
+## 1. Environment setup
+
+Create a conda environment (Python 3.8, TensorFlow-GPU 2.3.0, Flask-SocketIO,
+OpenCV, matplotlib, scikit-learn, imgaug) using the provided package list:
+
+```bash
+conda create --name cvi620 --file package_list.txt
+conda activate cvi620
+pip install -r pip_pkgs.txt
+```
+
+## 2. Data collection
+
+Already done by the team — `driving_log.csv` / `IMG/` (mtp) and
+`driving_log_ayub.csv` / `IMG_ayub/` (ayub) contain camera frames + steering
+angles collected by driving the track in the simulator's Training Mode
+(forward + reverse laps).
+
+## 3. Train the model
+
+```bash
+python train.py --datadir . --epochs 10
+```
+
+(`--datadir` points at the folder containing `driving_log.csv` and `IMG/` —
+use `.` for the repo root, or point it at another dataset such as one built
+from `driving_log_ayub.csv`/`IMG_ayub/`.)
+
+This will:
+1. Load the driving log (center image + steering angle only).
+2. **Balance** the steering histogram (angles are capped per bin, since most
+   raw samples are near-zero) — saves `model/histogram_before.png` and
+   `model/histogram_after.png`.
+3. Split 80/20 into train/validation.
+4. Train with a batch generator that applies **augmentation** (pan, zoom,
+   brightness, rotation, horizontal flip — each applied to a random subset,
+   flip negates the steering angle) only on the training split.
+5. Every image is **preprocessed** identically for train/val/inference: crop
+   road area (rows 60–135), convert to YUV, Gaussian blur, resize to
+   200×66, normalize to [0,1].
+6. Save `model/model.h5` and a training/validation loss plot `model/loss.png`.
+
+Useful flags: `--epochs`, `--steps_per_epoch`, `--batch_size`,
+`--samples_per_bin` (histogram cap), `--out` (output folder).
+
+## 4. Test in the simulator
+
+1. Launch the simulator with the same settings used for data collection and
+   choose **Autonomous Mode**.
+2. In the `cvi620` environment, run:
+
+```bash
+python TestSimulation.py model/model.h5
+```
+
+The script starts a SocketIO/Flask server on port 4567 that the simulator
+connects to; it receives each camera frame, preprocesses it the same way as
+training, predicts the steering angle, and sends back steering + throttle
+(throttle backs off as speed approaches `MAX_SPEED`).
+
+## Notes / troubleshooting
+
+- On Windows, if `conda activate` fails with "Unable to create process" (a
+  known conda bug triggered by spaces in the install path/username), skip
+  activation and instead call the env's `python.exe` directly, with its
+  `Library\bin` folder added to `PATH` for that shell session so native DLLs
+  (numpy, TensorFlow, etc.) resolve correctly.
+- The CNN architecture (`nvidia_model()` in `train.py`) mirrors the
+  assignment's Nvidia end-to-end figure: 5 conv layers (24/36/48/64/64
+  filters) → flatten (1152) → dense 1164/100/50/10 → 1 output neuron
+  (steering angle). Verified output feature-map shapes (31×98, 14×47, 5×22,
+  3×20, 1×18) match the figure.
+
+## Deliverables
+
+- All Python scripts: data preprocessing (`preprocessing.py`), augmentation
+  (`augmentation.py`), batching (`batching.py`), data loading/balancing
+  (`data_loader.py`), training (`train.py`), inference/testing
+  (`TestSimulation.py`).
+- A screen recording of the trained model driving successfully in the
+  simulator (not included in this repo — add separately).
+- This Git repository, with commit history showing individual contributions.
+- This documentation.
+
+Groups of up to 3 individuals are allowed for this project.

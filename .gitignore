@@ -1,0 +1,19 @@
+# Local-machine-only data (already tracked at repo root as IMG/ + driving_log.csv)
+data recorded/
+
+# Course PDF (instructor's material, not our work product)
+assignment.pdf
+
+# Local env setup logs / helper files (package_list.txt is the one referenced by the assignment)
+conda_create.log
+conda_pkgs.txt
+pip_install.log
+pip_install2.log
+pip_pkgs.txt
+
+# Python
+__pycache__/
+*.pyc
+
+# Claude Code project settings
+.claude/
