@@ -99,6 +99,47 @@ training, predicts the steering angle, and sends back steering + throttle
   (steering angle). Verified output feature-map shapes (31×98, 14×47, 5×22,
   3×20, 1×18) match the figure.
 
+## Approach
+
+The pipeline follows the classic Nvidia end-to-end behavioral cloning
+approach: collect (image, steering angle) pairs by driving manually, then
+train a CNN to regress steering angle directly from pixels — no lane
+detection or explicit feature engineering. The main design decisions:
+
+- **Center camera only** for training/inference, per the assignment — left/
+  right frames are collected but unused.
+- **Histogram balancing** before training, since raw driving data is
+  dominated by near-zero steering angles (straight-line driving); without
+  capping the over-represented bins the model would learn to just drive
+  straight.
+- **Augmentation only on the training split, only on a random subset of
+  samples per batch** — validation data stays "clean" so the loss curve
+  reflects real generalization, not augmentation noise.
+- **Identical preprocessing everywhere** (train/validation/live inference)
+  so the model never sees a distribution shift between training and the
+  simulator.
+
+## Challenges encountered
+
+- **`conda activate` failing on Windows** with `Unable to create process
+  using "...\anaconda3\python.exe" ...` — caused by a known conda bug
+  triggered by the space in the Windows username/install path. Worked
+  around by calling the environment's `python.exe` directly and adding its
+  `Library\bin` (and related) folders to `PATH` for the session instead of
+  relying on `conda activate`.
+- **`numpy`/TensorFlow DLL import errors** (`DLL load failed while importing
+  _multiarray_umath`) when running the env's Python without those same
+  `Library\bin` folders on `PATH` — same root cause/fix as above.
+- **Steering angle imbalance** — roughly 80% of collected samples had a
+  near-zero steering angle. Addressed with histogram-based balancing
+  (`data_loader.balance_data`) before the train/validation split.
+- **Merging into a shared team repo** that already had teammates' raw
+  driving data (`IMG_ayub/`, `driving_log_ayub.csv`) committed directly to
+  `main` (tens of thousands of image files). Used a `git sparse-checkout`
+  (cone mode, root files + `model/` only) so the pipeline code could be
+  added and merged without re-downloading or disturbing the existing
+  multi-gigabyte image history.
+
 ## Deliverables
 
 - All Python scripts: data preprocessing (`preprocessing.py`), augmentation
