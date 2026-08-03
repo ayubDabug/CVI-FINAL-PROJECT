@@ -11,8 +11,8 @@ have it output the correct steering angle to keep the car on the road.
 
 ```
 CVI-FINAL-PROJECT/
-├── IMG/                     # mtp's collected center/left/right camera frames
-├── driving_log.csv          # mtp's driving log: center,left,right,steering,throttle,brake,speed
+├── IMG/                     # kaung's collected center/left/right camera frames
+├── driving_log.csv          # kaung's driving log
 ├── IMG_ayub/                # ayub's collected camera frames
 ├── driving_log_ayub.csv     # ayub's driving log
 ├── data_mtp/driving_log.csv # (legacy duplicate — kept for history)
@@ -39,7 +39,7 @@ pip install -r pip_pkgs.txt
 
 ## 2. Data collection
 
-Already done by the team — `driving_log.csv` / `IMG/` (mtp) and
+Already done by the team — `driving_log.csv` / `IMG/` and
 `driving_log_ayub.csv` / `IMG_ayub/` (ayub) contain camera frames + steering
 angles collected by driving the track in the simulator's Training Mode
 (forward + reverse laps).
@@ -55,6 +55,7 @@ use `.` for the repo root, or point it at another dataset such as one built
 from `driving_log_ayub.csv`/`IMG_ayub/`.)
 
 This will:
+
 1. Load the driving log (center image + steering angle only).
 2. **Balance** the steering histogram (angles are capped per bin, since most
    raw samples are near-zero) — saves `model/histogram_before.png` and
@@ -122,13 +123,13 @@ detection or explicit feature engineering. The main design decisions:
 ## Challenges encountered
 
 - **`conda activate` failing on Windows** with `Unable to create process
-  using "...\anaconda3\python.exe" ...` — caused by a known conda bug
+using "...\anaconda3\python.exe" ...` — caused by a known conda bug
   triggered by the space in the Windows username/install path. Worked
   around by calling the environment's `python.exe` directly and adding its
   `Library\bin` (and related) folders to `PATH` for the session instead of
   relying on `conda activate`.
 - **`numpy`/TensorFlow DLL import errors** (`DLL load failed while importing
-  _multiarray_umath`) when running the env's Python without those same
+_multiarray_umath`) when running the env's Python without those same
   `Library\bin` folders on `PATH` — same root cause/fix as above.
 - **Steering angle imbalance** — roughly 80% of collected samples had a
   near-zero steering angle. Addressed with histogram-based balancing
